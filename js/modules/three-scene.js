@@ -566,15 +566,15 @@ export function initThreeScene() {
         labelDiv.textContent = electronLabels[i];
         labelDiv.style.color = '#00ffff';
         labelDiv.style.fontFamily = 'Orbitron, sans-serif';
-        labelDiv.style.fontSize = '16px';
+        labelDiv.style.fontSize = '14px'; // Reduced by 15% from 16px
         labelDiv.style.fontWeight = 'bold';
         labelDiv.style.textShadow = '0 0 15px #00ffff, 0 0 30px #00ffff80';
-        labelDiv.style.opacity = '0';
+        labelDiv.style.opacity = '0.8'; // Always visible
         labelDiv.style.transition = 'all 0.3s ease';
         labelDiv.style.pointerEvents = 'none';
         labelDiv.style.userSelect = 'none';
         labelDiv.style.background = 'rgba(0, 255, 255, 0.1)';
-        labelDiv.style.padding = '8px 12px';
+        labelDiv.style.padding = '7px 10px'; // Reduced by 15%
         labelDiv.style.borderRadius = '4px';
         labelDiv.style.border = '1px solid rgba(0, 255, 255, 0.3)';
         labelDiv.style.backdropFilter = 'blur(5px)';
@@ -706,17 +706,25 @@ export function initThreeScene() {
         // Cast ray from camera through mouse position
         raycaster.setFromCamera(mouse, camera);
         
-        // Check for intersections with electrons
-        const intersects = raycaster.intersectObjects(electrons);
+        // Check for intersections with electrons (including their children - core and shell meshes)
+        const intersects = raycaster.intersectObjects(electrons, true);
         
         if (intersects.length > 0) {
-            const clickedElectron = intersects[0].object;
-            const electronId = clickedElectron.userData.id;
+            const clickedObject = intersects[0].object;
+            // The clicked object might be the core mesh, so we need to traverse up to find the electron group
+            let electronGroup = clickedObject;
+            while (electronGroup && !electronGroup.userData.id) {
+                electronGroup = electronGroup.parent;
+            }
             
-            // Dispatch custom event
-            window.dispatchEvent(new CustomEvent('electronClicked', {
-                detail: { id: electronId }
-            }));
+            if (electronGroup && electronGroup.userData.id) {
+                const electronId = electronGroup.userData.id;
+                
+                // Dispatch custom event
+                window.dispatchEvent(new CustomEvent('electronClicked', {
+                    detail: { id: electronId }
+                }));
+            }
         }
     }
     
@@ -741,11 +749,18 @@ export function initThreeScene() {
         // Check if we're hovering in the atom area for presentation mode
         isInPresentationMode = distanceToAtom < ATOM_INTERACTION_RADIUS;
         
-        // Check for intersections with electrons first
-        const electronIntersects = raycaster.intersectObjects(electrons);
+        // Check for intersections with electrons first (including their children - core and shell meshes)
+        const electronIntersects = raycaster.intersectObjects(electrons, true);
         
         if (electronIntersects.length > 0) {
-            hoveredElectron = electronIntersects[0].object;
+            const hoveredObject = electronIntersects[0].object;
+            // The hovered object might be the core/shell mesh, so we need to traverse up to find the electron group
+            let electronGroup = hoveredObject;
+            while (electronGroup && !electronGroup.userData.id) {
+                electronGroup = electronGroup.parent;
+            }
+            
+            hoveredElectron = electronGroup;
             
             // Play hover sound only when starting to hover a new electron
             if (hoveredElectron !== previousHoveredElectron && window.audioFeedback) {
@@ -911,7 +926,7 @@ export function initThreeScene() {
                 electron.userData.shellMaterial.uniforms.time.value = time;
             }
             
-            // Enhanced and more prominent label animation based on hover state
+            // Enhanced label animation based on hover state - always visible with hover enhancement
             if (electron.userData.label) {
                 if (isHovered) {
                     electron.userData.label.style.opacity = '1';
@@ -919,15 +934,15 @@ export function initThreeScene() {
                     electron.userData.label.style.background = 'rgba(0, 255, 255, 0.3)';
                     electron.userData.label.style.border = '2px solid rgba(0, 255, 255, 0.8)';
                     electron.userData.label.style.textShadow = '0 0 25px #00ffff, 0 0 50px #00ffff80, 0 0 75px #00ffff40';
-                    electron.userData.label.style.fontSize = '18px';
+                    electron.userData.label.style.fontSize = '15px'; // Reduced by 15% from 18px
                     electron.userData.label.style.fontWeight = '900';
                 } else {
-                    electron.userData.label.style.opacity = '0';
+                    electron.userData.label.style.opacity = '0.8'; // Always visible
                     electron.userData.label.style.transform = 'scale(1) translateY(0)';
                     electron.userData.label.style.background = 'rgba(0, 255, 255, 0.1)';
                     electron.userData.label.style.border = '1px solid rgba(0, 255, 255, 0.3)';
                     electron.userData.label.style.textShadow = '0 0 15px #00ffff, 0 0 30px #00ffff80';
-                    electron.userData.label.style.fontSize = '16px';
+                    electron.userData.label.style.fontSize = '14px'; // Reduced by 15% from 16px
                     electron.userData.label.style.fontWeight = 'bold';
                 }
             }
