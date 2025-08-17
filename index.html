@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nic | AI Engineer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Initializing Portfolio...</div>
+            <div class="loading-progress">
+                <div class="loading-bar"></div>
+            </div>
+        </div>
+    </div>
+    
+    <main id="three-canvas-container"></main>
+    
+    <footer id="info-panel">
+        <div class="info-text">
+            <h2>Nic // AI Engineer</h2>
+            <p>I build AI systems that amplify human potential. <button id="discover-btn">Discover →</button></p>
+        </div>
+    </footer>
+    
+    <div id="modal-container" class="hidden"></div>
+    
+    <!-- Load Tone.js for audio feedback (deferred to prevent auto-initialization) -->
+    <script>
+        // Defer Tone.js loading until first user interaction
+        let toneLoaded = false;
+        
+        function loadToneJS() {
+            if (toneLoaded) return Promise.resolve();
+            
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
+                script.onload = () => {
+                    toneLoaded = true;
+                    resolve();
+                };
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        
+        // Make loadToneJS available globally
+        window.loadToneJS = loadToneJS;
+    </script>
+    
+    <!-- Import map for Three.js ES6 modules -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+      }
+    }
+    </script>
+    
+    <!-- Load the module with ES imports -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

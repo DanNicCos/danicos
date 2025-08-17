@@ -1,0 +1,7 @@
+:root {
+  --background-color: #111;
+  --primary-text-color: #EAEAEA;
+  --accent-color: #00FFFF;
+  --font-mono: 'Orbitron', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
