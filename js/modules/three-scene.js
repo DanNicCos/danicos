@@ -251,6 +251,140 @@ export function initThreeScene() {
     scene.add(starfield);
     scene.add(nebula);
     
+    // Distant Pulsar Ping Effect Variables
+    let pulsarTimer = 0;
+    const PULSAR_INTERVAL = 5 + Math.random() * 5; // 5-10 seconds
+    let currentPulsarStar = null;
+    let pulsarAnimationProgress = 0;
+    const starPoints = starfield.children[0]; // Get the Points object from starfield
+    
+    // Neural Synapse Flash Effect Variables
+    let synapseTimer = 0;
+    const SYNAPSE_INTERVAL = 15 + Math.random() * 5; // 15-20 seconds
+    let synapseAnimationProgress = 0;
+    let isFlashing = false;
+    
+    // Create Neural Network Plane with procedural neural pattern
+    const neuralPlaneGeometry = new THREE.PlaneGeometry(50, 50);
+    
+    const neuralVertexShader = `
+        varying vec2 vUv;
+        
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `;
+    
+    const neuralFragmentShader = `
+        uniform float time;
+        uniform float flashOpacity;
+        varying vec2 vUv;
+        
+        // Simple noise function
+        float noise(vec2 p) {
+            return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+        }
+        
+        // Create neural network pattern
+        float neuralPattern(vec2 uv) {
+            vec2 grid = floor(uv * 8.0);
+            vec2 localUv = fract(uv * 8.0);
+            
+            // Create nodes at grid intersections
+            float nodes = 0.0;
+            for(int x = -1; x <= 1; x++) {
+                for(int y = -1; y <= 1; y++) {
+                    vec2 offset = vec2(float(x), float(y));
+                    vec2 nodePos = grid + offset;
+                    
+                    // Random node position within cell
+                    vec2 nodeOffset = vec2(
+                        noise(nodePos + 100.0),
+                        noise(nodePos + 200.0)
+                    ) * 0.8 + 0.1;
+                    
+                    vec2 nodeWorldPos = (nodePos + nodeOffset) / 8.0;
+                    float dist = length(uv - nodeWorldPos);
+                    
+                    // Create node
+                    nodes += smoothstep(0.02, 0.01, dist);
+                    
+                    // Create connections between nearby nodes
+                    for(int nx = -1; nx <= 1; nx++) {
+                        for(int ny = -1; ny <= 1; ny++) {
+                            if(nx == 0 && ny == 0) continue;
+                            
+                            vec2 neighborPos = nodePos + vec2(float(nx), float(ny));
+                            vec2 neighborOffset = vec2(
+                                noise(neighborPos + 100.0),
+                                noise(neighborPos + 200.0)
+                            ) * 0.8 + 0.1;
+                            
+                            vec2 neighborWorldPos = (neighborPos + neighborOffset) / 8.0;
+                            
+                            // Line between nodes
+                            vec2 lineDir = normalize(neighborWorldPos - nodeWorldPos);
+                            vec2 toPoint = uv - nodeWorldPos;
+                            float lineProj = dot(toPoint, lineDir);
+                            lineProj = clamp(lineProj, 0.0, length(neighborWorldPos - nodeWorldPos));
+                            
+                            vec2 closestPoint = nodeWorldPos + lineDir * lineProj;
+                            float lineDist = length(uv - closestPoint);
+                            
+                            nodes += smoothstep(0.008, 0.003, lineDist) * 0.3;
+                        }
+                    }
+                }
+            }
+            
+            return nodes;
+        }
+        
+        void main() {
+            vec2 centeredUv = vUv - 0.5;
+            
+            // Create neural pattern
+            float pattern = neuralPattern(vUv);
+            
+            // Add some animation
+            float pulse = sin(time * 2.0) * 0.5 + 0.5;
+            pattern *= (0.5 + pulse * 0.5);
+            
+            // Distance fade from center
+            float distFromCenter = length(centeredUv);
+            float fade = 1.0 - smoothstep(0.3, 0.7, distFromCenter);
+            
+            // Neural network color - cyan with purple highlights
+            vec3 neuralColor = mix(
+                vec3(0.0, 0.4, 0.8),  // Dark blue base
+                vec3(0.0, 1.0, 1.0),  // Bright cyan
+                pattern
+            );
+            
+            float finalOpacity = pattern * fade * flashOpacity * 0.8;
+            
+            gl_FragColor = vec4(neuralColor, finalOpacity);
+        }
+    `;
+    
+    const neuralMaterial = new THREE.ShaderMaterial({
+        vertexShader: neuralVertexShader,
+        fragmentShader: neuralFragmentShader,
+        uniforms: {
+            time: { value: 0.0 },
+            flashOpacity: { value: 0.0 }
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide
+    });
+    
+    const neuralPlane = new THREE.Mesh(neuralPlaneGeometry, neuralMaterial);
+    neuralPlane.position.z = -30; // Position behind the atom
+    neuralPlane.rotation.x = Math.PI / 6; // Slight tilt
+    scene.add(neuralPlane);
+    
     
     // Create atom group for rotation
     const atomGroup = new THREE.Group();
@@ -706,11 +840,11 @@ export function initThreeScene() {
         // Cast ray from camera through mouse position
         raycaster.setFromCamera(mouse, camera);
         
-        // Check for intersections with electrons (including their children - core and shell meshes)
-        const intersects = raycaster.intersectObjects(electrons, true);
+        // Check for intersections with electrons first (including their children - core and shell meshes)
+        const electronIntersects = raycaster.intersectObjects(electrons, true);
         
-        if (intersects.length > 0) {
-            const clickedObject = intersects[0].object;
+        if (electronIntersects.length > 0) {
+            const clickedObject = electronIntersects[0].object;
             // The clicked object might be the core mesh, so we need to traverse up to find the electron group
             let electronGroup = clickedObject;
             while (electronGroup && !electronGroup.userData.id) {
@@ -724,6 +858,14 @@ export function initThreeScene() {
                 window.dispatchEvent(new CustomEvent('electronClicked', {
                     detail: { id: electronId }
                 }));
+            }
+        } else {
+            // If no electron was clicked, check for nucleus click
+            const nucleusIntersects = raycaster.intersectObjects([nucleus, corona], false);
+            
+            if (nucleusIntersects.length > 0) {
+                // Dispatch nucleus click event (same as Discover button)
+                window.dispatchEvent(new CustomEvent('nucleusClicked'));
             }
         }
     }
@@ -781,6 +923,29 @@ export function initThreeScene() {
     
     // Time tracker for electron animation
     let time = 0;
+    
+    // Distant Pulsar Ping Effect Function
+    function triggerPulsarPing() {
+        const starCount = starPoints.geometry.attributes.position.count;
+        const randomStarIndex = Math.floor(Math.random() * starCount);
+        
+        currentPulsarStar = {
+            index: randomStarIndex,
+            originalColor: {
+                r: starPoints.geometry.attributes.color.getX(randomStarIndex),
+                g: starPoints.geometry.attributes.color.getY(randomStarIndex), 
+                b: starPoints.geometry.attributes.color.getZ(randomStarIndex)
+            }
+        };
+        
+        pulsarAnimationProgress = 0;
+    }
+    
+    // Neural Synapse Flash Effect Function
+    function triggerSynapseFlash() {
+        isFlashing = true;
+        synapseAnimationProgress = 0;
+    }
 
     // Animation loop
     function animate() {
@@ -793,6 +958,76 @@ export function initThreeScene() {
         
         // Update time for all animations
         time += 0.01;
+        
+        // Distant Pulsar Ping Effect
+        pulsarTimer += 0.01;
+        if (pulsarTimer >= PULSAR_INTERVAL && !currentPulsarStar) {
+            triggerPulsarPing();
+            pulsarTimer = 0;
+        }
+        
+        // Animate current pulsar ping
+        if (currentPulsarStar) {
+            pulsarAnimationProgress += 0.02; // 1 second animation (0.02 * 50 frames)
+            
+            if (pulsarAnimationProgress <= 1.0) {
+                // Animate to cyan and back
+                const progress = pulsarAnimationProgress;
+                const pingIntensity = Math.sin(progress * Math.PI); // Smooth fade in and out
+                
+                // Bright cyan color for ping
+                const cyanColor = { r: 0.0, g: 1.0, b: 1.0 };
+                const currentR = currentPulsarStar.originalColor.r + (cyanColor.r - currentPulsarStar.originalColor.r) * pingIntensity;
+                const currentG = currentPulsarStar.originalColor.g + (cyanColor.g - currentPulsarStar.originalColor.g) * pingIntensity;
+                const currentB = currentPulsarStar.originalColor.b + (cyanColor.b - currentPulsarStar.originalColor.b) * pingIntensity;
+                
+                // Update star color
+                starPoints.geometry.attributes.color.setXYZ(currentPulsarStar.index, currentR, currentG, currentB);
+                starPoints.geometry.attributes.color.needsUpdate = true;
+            } else {
+                // Animation complete - reset star to original color
+                starPoints.geometry.attributes.color.setXYZ(
+                    currentPulsarStar.index, 
+                    currentPulsarStar.originalColor.r,
+                    currentPulsarStar.originalColor.g,
+                    currentPulsarStar.originalColor.b
+                );
+                starPoints.geometry.attributes.color.needsUpdate = true;
+                currentPulsarStar = null;
+                
+                // Set next random interval
+                pulsarTimer = 0;
+            }
+        }
+        
+        // Neural Synapse Flash Effect
+        synapseTimer += 0.01;
+        if (synapseTimer >= SYNAPSE_INTERVAL && !isFlashing) {
+            triggerSynapseFlash();
+            synapseTimer = 0;
+        }
+        
+        // Animate neural synapse flash
+        if (isFlashing) {
+            synapseAnimationProgress += 0.04; // 0.5 second flash (0.04 * 25 frames)
+            
+            if (synapseAnimationProgress <= 1.0) {
+                // Quick flash to low opacity and back
+                const progress = synapseAnimationProgress;
+                const flashIntensity = Math.sin(progress * Math.PI * 2) * 0.5 + 0.5; // Double frequency for quick flash
+                const targetOpacity = 0.15 * flashIntensity; // Low opacity as specified
+                
+                neuralMaterial.uniforms.flashOpacity.value = targetOpacity;
+            } else {
+                // Flash complete
+                neuralMaterial.uniforms.flashOpacity.value = 0.0;
+                isFlashing = false;
+                synapseTimer = 0;
+            }
+        }
+        
+        // Update neural plane material time uniform
+        neuralMaterial.uniforms.time.value = time;
         
         // Always update material time uniforms
         nucleusMaterial.uniforms.time.value = time;
