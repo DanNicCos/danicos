@@ -85,12 +85,54 @@ export function initThreeScene() {
         loadingManager.onLoad();
     }, 1000);
     
+    // Helper function to create enhanced star texture
+    function createStarTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        
+        const context = canvas.getContext('2d');
+        const center = canvas.width / 2;
+        
+        // Create brighter, more contrasted radial gradient for better visibility
+        const gradient = context.createRadialGradient(center, center, 0, center, center, center);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');     // Bright white center
+        gradient.addColorStop(0.1, 'rgba(255, 255, 255, 0.95)');  // Extended bright core
+        gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.7)');   // Still quite visible
+        gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');   // More gradual fade
+        gradient.addColorStop(0.8, 'rgba(255, 255, 255, 0.05)');  // Subtle glow edge
+        gradient.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');   // Transparent edge
+        
+        // Fill the canvas with the gradient
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Add a subtle cross-flare effect for larger stars
+        context.globalCompositeOperation = 'lighter';
+        
+        // Horizontal beam
+        context.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        context.fillRect(0, center - 1, canvas.width, 2);
+        
+        // Vertical beam  
+        context.fillRect(center - 1, 0, 2, canvas.height);
+        
+        // Create and return the texture
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        
+        return texture;
+    }
+
     // Create starfield function - moved inside to ensure THREE is available
     function createStarfield() {
         const starGroup = new THREE.Group();
         
-        // Main starfield with varied sizes and brightness
-        const starCount = 800;
+        // Create the star texture
+        const starTexture = createStarTexture();
+        
+        // Main starfield with varied sizes and brightness - increased for better density
+        const starCount = 5000;
         const starGeometry = new THREE.BufferGeometry();
         const starPositions = new Float32Array(starCount * 3);
         const starSizes = new Float32Array(starCount);
@@ -99,31 +141,96 @@ export function initThreeScene() {
         for (let i = 0; i < starCount; i++) {
             const i3 = i * 3;
             
-            // Position
-            starPositions[i3] = (Math.random() - 0.5) * 400;     // x - larger spread
-            starPositions[i3 + 1] = (Math.random() - 0.5) * 400; // y
-            starPositions[i3 + 2] = (Math.random() - 0.5) * 400; // z
+            // Position with larger spread for more immersive field
+            starPositions[i3] = (Math.random() - 0.5) * 500;     // x - even larger spread
+            starPositions[i3 + 1] = (Math.random() - 0.5) * 500; // y
+            starPositions[i3 + 2] = (Math.random() - 0.5) * 500; // z
             
-            // Size variation for depth
-            starSizes[i] = Math.random() * 3 + 0.5;
+            // Enhanced size variation with some much larger foreground stars
+            const sizeRandom = Math.random();
+            if (sizeRandom < 0.05) {
+                // 5% chance for very large, prominent stars
+                starSizes[i] = 10 + Math.random() * 10; // 15-25 size
+            } else if (sizeRandom < 0.15) {
+                // 10% chance for medium-large stars
+                starSizes[i] = 5 + Math.random() * 7;   // 8-15 size
+            } else {
+                // 85% normal sized stars
+                starSizes[i] = Math.random() * 6 + 1.5; // 1.5-9.5 size (increased from 1-7)
+            }
             
-            // Color variation - cool tones
-            const brightness = 0.5 + Math.random() * 0.5;
-            starColors[i3] = brightness * 0.8;     // R - less red
-            starColors[i3 + 1] = brightness;       // G - full green
-            starColors[i3 + 2] = brightness;       // B - full blue
+            // Enhanced color variation with brighter, more visible tones
+            const brightness = 0.7 + Math.random() * 0.3; // Brighter base (0.7-1.0 instead of 0.5-1.0)
+            
+            // More varied color palette for visual interest
+            const colorVariant = Math.random();
+            if (colorVariant < 0.6) {
+                // 60% cool white/blue stars
+                starColors[i3] = brightness * 0.9;     // R - slight blue tint
+                starColors[i3 + 1] = brightness;       // G - full
+                starColors[i3 + 2] = brightness;       // B - full
+            } else if (colorVariant < 0.8) {
+                // 20% pure white stars (most visible)
+                starColors[i3] = brightness;           // R - full white
+                starColors[i3 + 1] = brightness;       // G - full white
+                starColors[i3 + 2] = brightness;       // B - full white
+            } else {
+                // 20% warm yellow/orange stars for variety
+                starColors[i3] = brightness;           // R - full
+                starColors[i3 + 1] = brightness * 0.9; // G - slight warmth
+                starColors[i3 + 2] = brightness * 0.7; // B - reduced for warmth
+            }
         }
         
         starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
         starGeometry.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
         starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
         
-        const starMaterial = new THREE.PointsMaterial({
-            size: 1,
+        // Custom shader material for pulsating star effect
+        const starVertexShader = `
+            attribute float size;
+            attribute vec3 color;
+            varying vec3 vColor;
+            
+            void main() {
+                vColor = color;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = size * (300.0 / -mvPosition.z); // Size attenuation
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `;
+        
+        const starFragmentShader = `
+            uniform float time;
+            uniform sampler2D starTexture;
+            varying vec3 vColor;
+            
+            void main() {
+                vec2 uv = gl_PointCoord;
+                
+                // Sample the star texture
+                vec4 textureColor = texture2D(starTexture, uv);
+                
+                // Create pulsating effect with sine wave
+                float pulse = sin(time * 2.0 + gl_FragCoord.x * 0.01 + gl_FragCoord.y * 0.01) * 0.3 + 0.7;
+                
+                // Apply color and pulsation to alpha - enhanced visibility
+                vec3 finalColor = vColor * textureColor.rgb;
+                float finalAlpha = textureColor.a * pulse * 0.95; // Increased from 0.8 to 0.95
+                
+                gl_FragColor = vec4(finalColor, finalAlpha);
+            }
+        `;
+        
+        const starMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0.0 },
+                starTexture: { value: starTexture }
+            },
+            vertexShader: starVertexShader,
+            fragmentShader: starFragmentShader,
             transparent: true,
-            opacity: 0.8,
-            vertexColors: true,
-            sizeAttenuation: true
+            blending: THREE.AdditiveBlending
         });
         
         const stars = new THREE.Points(starGeometry, starMaterial);
@@ -1032,6 +1139,11 @@ export function initThreeScene() {
         // Always update material time uniforms
         nucleusMaterial.uniforms.time.value = time;
         coronaMaterial.uniforms.time.value = time;
+        
+        // Update starfield material time uniform for pulsation effect
+        if (starfield && starfield.children[0] && starfield.children[0].material) {
+            starfield.children[0].material.uniforms.time.value = time;
+        }
         
         // Update orbital dash materials for pulsing glow effect
         orbitDashMaterials.forEach(material => {
