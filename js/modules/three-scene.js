@@ -2,9 +2,13 @@
 // CSS2D components will be loaded dynamically
 
 // Module-level variables
-let isHovering = false;
 let hoveredElectron = null;
 let previousHoveredElectron = null;
+
+// Presentation mode variables
+let isInPresentationMode = false;
+let presentationModeTransition = 0; // 0 = default, 1 = presentation
+const ATOM_INTERACTION_RADIUS = 3.5; // Radius around atom for hover detection
 
 export function initThreeScene() {
     // Check if THREE is available
@@ -83,26 +87,116 @@ export function initThreeScene() {
     
     // Create starfield function - moved inside to ensure THREE is available
     function createStarfield() {
-        const starCount = 500;
+        const starGroup = new THREE.Group();
+        
+        // Main starfield with varied sizes and brightness
+        const starCount = 800;
         const starGeometry = new THREE.BufferGeometry();
         const starPositions = new Float32Array(starCount * 3);
+        const starSizes = new Float32Array(starCount);
+        const starColors = new Float32Array(starCount * 3);
         
-        for (let i = 0; i < starCount * 3; i += 3) {
-            starPositions[i] = (Math.random() - 0.5) * 200;     // x
-            starPositions[i + 1] = (Math.random() - 0.5) * 200; // y
-            starPositions[i + 2] = (Math.random() - 0.5) * 200; // z
+        for (let i = 0; i < starCount; i++) {
+            const i3 = i * 3;
+            
+            // Position
+            starPositions[i3] = (Math.random() - 0.5) * 400;     // x - larger spread
+            starPositions[i3 + 1] = (Math.random() - 0.5) * 400; // y
+            starPositions[i3 + 2] = (Math.random() - 0.5) * 400; // z
+            
+            // Size variation for depth
+            starSizes[i] = Math.random() * 3 + 0.5;
+            
+            // Color variation - cool tones
+            const brightness = 0.5 + Math.random() * 0.5;
+            starColors[i3] = brightness * 0.8;     // R - less red
+            starColors[i3 + 1] = brightness;       // G - full green
+            starColors[i3 + 2] = brightness;       // B - full blue
         }
         
         starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        starGeometry.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+        starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
         
         const starMaterial = new THREE.PointsMaterial({
-            color: 0xffffff,
             size: 1,
             transparent: true,
-            opacity: 0.8
+            opacity: 0.8,
+            vertexColors: true,
+            sizeAttenuation: true
         });
         
-        return new THREE.Points(starGeometry, starMaterial);
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        starGroup.add(stars);
+        
+        return starGroup;
+    }
+    
+    // Create cosmic dust/nebula effect
+    function createNebula() {
+        const nebulaGroup = new THREE.Group();
+        
+        // Create multiple dust clouds
+        for (let layer = 0; layer < 3; layer++) {
+            const dustCount = 200;
+            const dustGeometry = new THREE.BufferGeometry();
+            const dustPositions = new Float32Array(dustCount * 3);
+            const dustSizes = new Float32Array(dustCount);
+            const dustColors = new Float32Array(dustCount * 3);
+            
+            for (let i = 0; i < dustCount; i++) {
+                const i3 = i * 3;
+                
+                // Position in larger sphere
+                const radius = 150 + layer * 50;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                
+                dustPositions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+                dustPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                dustPositions[i3 + 2] = radius * Math.cos(phi);
+                
+                // Size variation
+                dustSizes[i] = Math.random() * 8 + 2;
+                
+                // Nebula colors - dark blues, purples, teals
+                const colorVariant = Math.random();
+                if (colorVariant < 0.33) {
+                    // Dark blue
+                    dustColors[i3] = 0.1;     // R
+                    dustColors[i3 + 1] = 0.2; // G
+                    dustColors[i3 + 2] = 0.6; // B
+                } else if (colorVariant < 0.66) {
+                    // Purple
+                    dustColors[i3] = 0.4;     // R
+                    dustColors[i3 + 1] = 0.1; // G
+                    dustColors[i3 + 2] = 0.8; // B
+                } else {
+                    // Teal
+                    dustColors[i3] = 0.0;     // R
+                    dustColors[i3 + 1] = 0.6; // G
+                    dustColors[i3 + 2] = 0.6; // B
+                }
+            }
+            
+            dustGeometry.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+            dustGeometry.setAttribute('size', new THREE.BufferAttribute(dustSizes, 1));
+            dustGeometry.setAttribute('color', new THREE.BufferAttribute(dustColors, 3));
+            
+            const dustMaterial = new THREE.PointsMaterial({
+                size: 1,
+                transparent: true,
+                opacity: 0.1 - layer * 0.02, // Each layer more transparent
+                vertexColors: true,
+                sizeAttenuation: true,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const dust = new THREE.Points(dustGeometry, dustMaterial);
+            nebulaGroup.add(dust);
+        }
+        
+        return nebulaGroup;
     }
     // Get container element
     const container = document.getElementById('three-canvas-container');
@@ -115,7 +209,7 @@ export function initThreeScene() {
 
     // Scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a1929); // Dark blue background
+    scene.background = new THREE.Color(0x050a1a); // Deeper space background
 
     // Camera setup
     const camera = new THREE.PerspectiveCamera(
@@ -151,16 +245,12 @@ export function initThreeScene() {
     pointLight.position.set(2, 3, 4);
     scene.add(pointLight);
 
-    // Add starfield to scene
+    // Add enhanced starfield and nebula to scene
     const starfield = createStarfield();
+    const nebula = createNebula();
     scene.add(starfield);
+    scene.add(nebula);
     
-    // Add a test cube to verify rendering
-    const testGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const testMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const testCube = new THREE.Mesh(testGeometry, testMaterial);
-    testCube.position.set(3, 0, 0);
-    scene.add(testCube);
     
     // Create atom group for rotation
     const atomGroup = new THREE.Group();
@@ -169,11 +259,16 @@ export function initThreeScene() {
     // Create nucleus with gradient shader
     const nucleusGeometry = new THREE.SphereGeometry(0.5, 32, 32);
     
-    // Nucleus gradient shader
+    // Enhanced nucleus gradient shader with plasma effect
     const nucleusVertexShader = `
         varying vec3 vPosition;
+        varying vec3 vNormal;
+        varying vec2 vUv;
+        
         void main() {
             vPosition = position;
+            vNormal = normalize(normalMatrix * normal);
+            vUv = uv;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
     `;
@@ -182,18 +277,64 @@ export function initThreeScene() {
         uniform float time;
         uniform float emissiveIntensity;
         varying vec3 vPosition;
+        varying vec3 vNormal;
+        varying vec2 vUv;
+        
+        // Noise function for plasma effect
+        float noise(vec2 p) {
+            return sin(p.x * 12.9898 + p.y * 78.233) * 43758.5453;
+        }
+        
+        float fbm(vec2 p) {
+            float value = 0.0;
+            float amplitude = 0.5;
+            float frequency = 1.0;
+            
+            for(int i = 0; i < 4; i++) {
+                value += amplitude * sin(noise(p * frequency + time * 0.5));
+                frequency *= 2.0;
+                amplitude *= 0.5;
+            }
+            return value;
+        }
         
         void main() {
-            // Create gradient from blue to purple based on Y position
-            float gradient = (vPosition.y + 0.5) / 1.0; // Normalize to 0-1
-            vec3 color1 = vec3(0.25, 0.5, 1.0); // Blue
-            vec3 color2 = vec3(0.8, 0.3, 1.0);  // Purple
-            vec3 baseColor = mix(color1, color2, gradient);
+            // Create complex gradient from deep magenta to electric blue
+            float sphericalGradient = length(vPosition) / 0.5;
+            float yGradient = (vPosition.y + 0.5) / 1.0;
+            float radialGradient = length(vUv - 0.5) * 2.0;
             
-            // Add emissive glow
-            vec3 emissiveColor = baseColor * emissiveIntensity;
+            // Multiple gradient layers
+            vec3 magenta = vec3(0.9, 0.2, 0.8);     // Deep magenta
+            vec3 purple = vec3(0.6, 0.1, 0.9);      // Purple middle
+            vec3 electricBlue = vec3(0.0, 0.5, 1.0); // Electric blue
+            vec3 cyan = vec3(0.0, 0.8, 1.0);        // Bright cyan
             
-            gl_FragColor = vec4(baseColor + emissiveColor, 1.0);
+            // Complex color mixing
+            vec3 color1 = mix(magenta, purple, smoothstep(0.0, 0.4, yGradient));
+            vec3 color2 = mix(electricBlue, cyan, smoothstep(0.6, 1.0, yGradient));
+            vec3 baseColor = mix(color1, color2, smoothstep(0.3, 0.7, yGradient));
+            
+            // Add plasma texture effect
+            vec2 plasmaUv = vUv * 3.0 + time * 0.1;
+            float plasma1 = fbm(plasmaUv);
+            float plasma2 = fbm(plasmaUv + vec2(1.7, 9.2));
+            float plasma3 = fbm(plasmaUv + vec2(8.3, 2.8));
+            
+            float plasmaPattern = sin(plasma1 + plasma2 + plasma3 + time) * 0.5 + 0.5;
+            
+            // Apply plasma effect to color
+            vec3 plasmaColor = baseColor + plasmaPattern * 0.3 * vec3(0.5, 0.2, 0.8);
+            
+            // Enhanced emissive glow with pulsing
+            float pulse = sin(time * 2.0) * 0.5 + 0.5;
+            vec3 emissiveColor = plasmaColor * (emissiveIntensity + pulse * 0.4);
+            
+            // Rim lighting effect
+            float rimPower = 1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0)));
+            vec3 rimColor = vec3(0.0, 0.8, 1.0) * rimPower * 0.5;
+            
+            gl_FragColor = vec4(plasmaColor + emissiveColor + rimColor, 1.0);
         }
     `;
     
@@ -208,103 +349,348 @@ export function initThreeScene() {
     
     const nucleus = new THREE.Mesh(nucleusGeometry, nucleusMaterial);
     atomGroup.add(nucleus);
-
-    // Create electrons with gradient shader
-    const electronGeometry = new THREE.SphereGeometry(0.25, 16, 16);
     
-    // Electron gradient shader
-    const electronVertexShader = `
+    // Create corona/glow effect around nucleus
+    const coronaGeometry = new THREE.SphereGeometry(0.8, 24, 24);
+    const coronaVertexShader = `
+        varying vec3 vNormal;
         varying vec3 vPosition;
+        
         void main() {
+            vNormal = normalize(normalMatrix * normal);
             vPosition = position;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
     `;
     
-    const electronFragmentShader = `
+    const coronaFragmentShader = `
         uniform float time;
+        uniform float glowIntensity;
+        varying vec3 vNormal;
         varying vec3 vPosition;
         
         void main() {
-            // Create gradient from cyan to white based on distance from center
-            float distance = length(vPosition);
-            float gradient = smoothstep(0.0, 0.25, distance);
-            vec3 color1 = vec3(0.0, 1.0, 1.0); // Cyan
-            vec3 color2 = vec3(0.8, 1.0, 1.0); // Light cyan/white
-            vec3 baseColor = mix(color1, color2, gradient);
+            // Fresnel effect for outer glow
+            float fresnel = 1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0)));
+            fresnel = pow(fresnel, 2.0);
             
-            // Add emissive glow
-            vec3 emissiveColor = baseColor * 0.5;
+            // Pulsing glow
+            float pulse = sin(time * 3.0) * 0.5 + 0.5;
+            float intensity = fresnel * glowIntensity * (0.8 + pulse * 0.4);
             
-            gl_FragColor = vec4(baseColor + emissiveColor, 1.0);
+            // Corona colors - electric blue to cyan
+            vec3 coronaColor = mix(vec3(0.0, 0.5, 1.0), vec3(0.0, 0.8, 1.0), pulse);
+            
+            gl_FragColor = vec4(coronaColor, intensity * 0.6);
         }
     `;
     
-    const electronMaterial = new THREE.ShaderMaterial({
-        vertexShader: electronVertexShader,
-        fragmentShader: electronFragmentShader,
+    const coronaMaterial = new THREE.ShaderMaterial({
+        vertexShader: coronaVertexShader,
+        fragmentShader: coronaFragmentShader,
         uniforms: {
-            time: { value: 0.0 }
+            time: { value: 0.0 },
+            glowIntensity: { value: 1.0 }
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        side: THREE.BackSide
+    });
+    
+    const corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
+    atomGroup.add(corona);
+
+    // Create electrons with enhanced core-shell design
+    const electronCoreGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+    const electronShellGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+    
+    // Enhanced electron core shader with hover glow
+    const electronCoreVertexShader = `
+        varying vec3 vPosition;
+        varying vec3 vNormal;
+        
+        void main() {
+            vPosition = position;
+            vNormal = normalize(normalMatrix * normal);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
+    `;
+    
+    const electronCoreFragmentShader = `
+        uniform float time;
+        uniform float hoverIntensity;
+        varying vec3 vPosition;
+        varying vec3 vNormal;
+        
+        void main() {
+            // Bright cyan core with enhanced glow on hover
+            vec3 cyanCore = vec3(0.0, 1.0, 1.0);
+            float pulse = sin(time * 4.0) * 0.3 + 0.7;
+            
+            // Distance-based intensity for bright core
+            float distance = length(vPosition) / 0.15;
+            float intensity = 2.0 - smoothstep(0.0, 1.0, distance); // Brighter base intensity
+            
+            // Enhanced rim lighting with hover effect
+            float rim = 1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0)));
+            rim = pow(rim, 1.5 - hoverIntensity * 0.5);
+            
+            // Much brighter core intensity that makes electrons focal point
+            float coreIntensity = pulse * (2.5 + hoverIntensity * 3.0); // Significantly brighter
+            
+            // Enhanced lens flare effect - billboarded star-like rays
+            vec2 uv = vPosition.xy;
+            float angle1 = atan(uv.y, uv.x);
+            float angle2 = atan(uv.x, uv.y);
+            
+            // Create 4-pointed star effect
+            float star1 = abs(sin(angle1 * 2.0)) * (1.0 - length(uv));
+            float star2 = abs(sin(angle2 * 2.0)) * (1.0 - length(uv));
+            
+            // Create 6-pointed star effect for more complex flare
+            float star3 = abs(sin(angle1 * 3.0)) * (1.0 - length(uv));
+            float star4 = abs(sin((angle1 + 0.5) * 3.0)) * (1.0 - length(uv));
+            
+            // Combine star effects with pulsing
+            float starPulse = sin(time * 6.0) * 0.3 + 0.7;
+            float lensFlare = (star1 + star2) * 0.8 * starPulse * (1.0 + hoverIntensity * 2.0);
+            lensFlare += (star3 + star4) * 0.4 * starPulse * (1.0 + hoverIntensity);
+            
+            // Bright glow effect - much more prominent
+            float glowRadius = 1.0 - distance;
+            float brightGlow = pow(glowRadius, 0.3) * 2.5; // Significantly brighter
+            
+            // Additional radial glow for prominence
+            float radialGlow = 1.0 / (1.0 + distance * 3.0) * 1.5;
+            
+            vec3 finalColor = cyanCore * (coreIntensity * intensity + rim * (2.0 + hoverIntensity * 2.0) + lensFlare + brightGlow + radialGlow);
+            
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    `;
+    
+    const electronCoreMaterial = new THREE.ShaderMaterial({
+        vertexShader: electronCoreVertexShader,
+        fragmentShader: electronCoreFragmentShader,
+        uniforms: {
+            time: { value: 0.0 },
+            hoverIntensity: { value: 0.0 }
+        }
+    });
+    
+    // Enhanced electron shell shader with hover response
+    const electronShellVertexShader = `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        
+        void main() {
+            vNormal = normalize(normalMatrix * normal);
+            vPosition = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `;
+    
+    const electronShellFragmentShader = `
+        uniform float time;
+        uniform float hoverIntensity;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        
+        void main() {
+            // Enhanced fresnel effect for shell transparency
+            float fresnel = 1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0)));
+            fresnel = pow(fresnel, 1.2 - hoverIntensity * 0.3);
+            
+            // Enhanced pulsing with brighter base
+            float pulse = sin(time * 2.0) * 0.3 + 1.0;
+            
+            // Brighter cyan shell with enhanced hover effect
+            vec3 shellColor = vec3(0.3, 1.0, 1.0) * (1.5 + hoverIntensity * 1.2); // Much brighter
+            
+            // Additional glow ring effect
+            float ringEffect = pow(fresnel, 2.0) * 0.8;
+            
+            float opacity = (fresnel * pulse + ringEffect) * (0.6 + hoverIntensity * 0.8);
+            
+            gl_FragColor = vec4(shellColor, opacity);
+        }
+    `;
+    
+    const electronShellMaterial = new THREE.ShaderMaterial({
+        vertexShader: electronShellVertexShader,
+        fragmentShader: electronShellFragmentShader,
+        uniforms: {
+            time: { value: 0.0 },
+            hoverIntensity: { value: 0.0 }
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        side: THREE.BackSide
     });
 
     // Create four electrons with identifiers and labels
     const electrons = [];
-    const electronIds = ['bio', 'project1', 'project2', 'contact'];
-    const electronLabels = ['Bio', 'Project 1', 'Project 2', 'Contact'];
+    const electronCores = [];
+    const electronShells = [];
+    const electronIds = ['bio', 'project1', 'project2', 'project3'];
+    const electronLabels = ['Bio', 'Project Alpha', 'Project Beta', 'Project Gamma'];
     
     for (let i = 0; i < 4; i++) {
-        const electron = new THREE.Mesh(electronGeometry, electronMaterial);
-        electron.userData = { id: electronIds[i] };
-        electrons.push(electron);
-        atomGroup.add(electron);
+        // Create electron group for core + shell
+        const electronGroup = new THREE.Group();
+        electronGroup.userData = { id: electronIds[i] };
         
-        // Create CSS2D label for this electron
+        // Create individual materials for each electron to allow independent hover effects
+        const coreMatClone = electronCoreMaterial.clone();
+        const shellMatClone = electronShellMaterial.clone();
+        
+        // Create core and shell with individual materials
+        const electronCore = new THREE.Mesh(electronCoreGeometry, coreMatClone);
+        const electronShell = new THREE.Mesh(electronShellGeometry, shellMatClone);
+        
+        electronGroup.add(electronCore);
+        electronGroup.add(electronShell);
+        
+        // Store material references for hover effects
+        electronGroup.userData.coreMaterial = coreMatClone;
+        electronGroup.userData.shellMaterial = shellMatClone;
+        
+        electrons.push(electronGroup);
+        electronCores.push(electronCore);
+        electronShells.push(electronShell);
+        atomGroup.add(electronGroup);
+        
+        // Create enhanced CSS2D label for this electron
         const labelDiv = document.createElement('div');
         labelDiv.className = 'electron-label';
         labelDiv.textContent = electronLabels[i];
         labelDiv.style.color = '#00ffff';
         labelDiv.style.fontFamily = 'Orbitron, sans-serif';
-        labelDiv.style.fontSize = '14px';
+        labelDiv.style.fontSize = '16px';
         labelDiv.style.fontWeight = 'bold';
-        labelDiv.style.textShadow = '0 0 10px #00ffff';
+        labelDiv.style.textShadow = '0 0 15px #00ffff, 0 0 30px #00ffff80';
         labelDiv.style.opacity = '0';
-        labelDiv.style.transition = 'opacity 0.3s ease';
+        labelDiv.style.transition = 'all 0.3s ease';
         labelDiv.style.pointerEvents = 'none';
         labelDiv.style.userSelect = 'none';
+        labelDiv.style.background = 'rgba(0, 255, 255, 0.1)';
+        labelDiv.style.padding = '8px 12px';
+        labelDiv.style.borderRadius = '4px';
+        labelDiv.style.border = '1px solid rgba(0, 255, 255, 0.3)';
+        labelDiv.style.backdropFilter = 'blur(5px)';
+        labelDiv.style.whiteSpace = 'nowrap';
+        labelDiv.style.letterSpacing = '0.1em';
+        labelDiv.style.textTransform = 'uppercase';
         
         const label = new window.CSS2DObject(labelDiv);
         label.position.set(0, 0.4, 0); // Position above the electron
-        electron.add(label);
+        electronGroup.add(label);
         
         // Store reference to label for easier access
-        electron.userData.label = labelDiv;
+        electronGroup.userData.label = labelDiv;
     }
 
-    // Create orbital paths (visual rings)
-    const orbitMaterial = new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
-        transparent: true,
-        opacity: 0.2,
-        side: THREE.DoubleSide
-    });
-
-    // Orbit configurations
+    // Create simplified two-orbit system: Inner (Personal) and Outer (Projects)
     const orbitConfigs = [
-        { radius: 1.5, tilt: { x: 0, y: 0, z: 0 } },        // XY plane
-        { radius: 1.6, tilt: { x: Math.PI / 2, y: 0, z: 0 } }, // XZ plane
-        { radius: 1.7, tilt: { x: Math.PI / 4, y: Math.PI / 4, z: 0 } }, // 45 degree tilt
-        { radius: 2.0, tilt: { x: Math.PI / 3, y: -Math.PI / 6, z: Math.PI / 8 } } // Custom tilt
+        { 
+            name: 'inner-personal', 
+            radius: 1.3, 
+            tilt: { x: 0, y: 0, z: 0 },
+            electronCount: 1,
+            electronIds: ['bio']
+        },        // Inner orbit for Bio
+        { 
+            name: 'outer-projects', 
+            radius: 2.2, 
+            tilt: { x: Math.PI / 8, y: 0, z: 0 },
+            electronCount: 3,
+            electronIds: ['project1', 'project2', 'project3']
+        }         // Outer orbit for Projects
     ];
 
-    // Create visual orbit paths
+    const orbits = [];
+    const orbitDashMaterials = []; // Store materials for time uniform updates
+
+    // Create simple dash orbital paths
     orbitConfigs.forEach((config) => {
-        const orbitGeometry = new THREE.TorusGeometry(config.radius, 0.01, 8, 100);
-        const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
-        orbit.rotation.x = config.tilt.x;
-        orbit.rotation.y = config.tilt.y;
-        orbit.rotation.z = config.tilt.z;
-        atomGroup.add(orbit);
+        const orbitGroup = new THREE.Group();
+        
+        // Create simple dashed orbital path
+        const dashCount = 24; // Number of dashes around the orbit
+        const dashLength = 0.3; // Length of each dash
+        
+        for (let i = 0; i < dashCount; i++) {
+            const startAngle = (i / dashCount) * Math.PI * 2;
+            const endAngle = startAngle + (dashLength / config.radius);
+            
+            // Create individual dash
+            const dashPoints = [];
+            const dashSegments = 4; // Smooth curve for each dash
+            for (let j = 0; j <= dashSegments; j++) {
+                const angle = startAngle + (endAngle - startAngle) * (j / dashSegments);
+                dashPoints.push(new THREE.Vector3(
+                    Math.cos(angle) * config.radius,
+                    Math.sin(angle) * config.radius,
+                    0
+                ));
+            }
+            
+            const dashGeometry = new THREE.BufferGeometry().setFromPoints(dashPoints);
+            
+            // Enhanced dash material with pulsing glow shader
+            const dashVertexShader = `
+                varying vec3 vPosition;
+                uniform float time;
+                uniform float dashIndex;
+                
+                void main() {
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `;
+            
+            const dashFragmentShader = `
+                uniform float time;
+                uniform float dashIndex;
+                varying vec3 vPosition;
+                
+                void main() {
+                    // Pulsing glow effect with different phases for each dash
+                    float pulse = sin(time * 2.0 + dashIndex * 0.5) * 0.5 + 0.5;
+                    float glowIntensity = 0.3 + pulse * 0.7;
+                    
+                    // Subtle color variation
+                    vec3 baseColor = vec3(0.0, 0.3, 0.6); // Deep blue
+                    vec3 glowColor = vec3(0.0, 0.6, 1.0); // Bright cyan
+                    vec3 finalColor = mix(baseColor, glowColor, pulse);
+                    
+                    gl_FragColor = vec4(finalColor * glowIntensity, glowIntensity * 0.8);
+                }
+            `;
+            
+            const dashMaterial = new THREE.ShaderMaterial({
+                vertexShader: dashVertexShader,
+                fragmentShader: dashFragmentShader,
+                uniforms: {
+                    time: { value: 0.0 },
+                    dashIndex: { value: i }
+                },
+                transparent: true,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const dash = new THREE.Line(dashGeometry, dashMaterial);
+            orbitGroup.add(dash);
+            orbitDashMaterials.push(dashMaterial); // Store for time updates
+        }
+        
+        // Apply orbit rotation
+        orbitGroup.rotation.x = config.tilt.x;
+        orbitGroup.rotation.y = config.tilt.y;
+        orbitGroup.rotation.z = config.tilt.z;
+        
+        orbits.push(orbitGroup);
+        atomGroup.add(orbitGroup);
     });
 
     // Raycasting setup for interaction
@@ -334,7 +720,7 @@ export function initThreeScene() {
         }
     }
     
-    // Hover handler for electrons and nucleus
+    // Hover handler for electrons, nucleus, and atom area
     function onPointerMove(event) {
         // Calculate normalized mouse coordinates
         mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -343,22 +729,31 @@ export function initThreeScene() {
         // Cast ray from camera through mouse position
         raycaster.setFromCamera(mouse, camera);
         
+        // Check distance from camera ray to atom center for presentation mode
+        const atomCenter = atomGroup.position;
+        const cameraToAtom = new THREE.Vector3().subVectors(atomCenter, camera.position);
+        
+        // Calculate closest point on ray to atom center
+        const t = cameraToAtom.dot(raycaster.ray.direction);
+        const closestPoint = new THREE.Vector3().copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, t);
+        const distanceToAtom = closestPoint.distanceTo(atomCenter);
+        
+        // Check if we're hovering in the atom area for presentation mode
+        isInPresentationMode = distanceToAtom < ATOM_INTERACTION_RADIUS;
+        
         // Check for intersections with electrons first
         const electronIntersects = raycaster.intersectObjects(electrons);
         
         if (electronIntersects.length > 0) {
             hoveredElectron = electronIntersects[0].object;
-            isHovering = true;
             
             // Play hover sound only when starting to hover a new electron
             if (hoveredElectron !== previousHoveredElectron && window.audioFeedback) {
                 window.audioFeedback.playHoverSound();
             }
         } else {
-            // Check nucleus
-            const nucleusIntersects = raycaster.intersectObjects([nucleus]);
+            // Reset hovered electron when not hovering any
             hoveredElectron = null;
-            isHovering = nucleusIntersects.length > 0;
         }
         
         // Update previous hovered electron
@@ -376,56 +771,128 @@ export function initThreeScene() {
     function animate() {
         requestAnimationFrame(animate);
         
-        // Only animate if not hovering
-        if (!isHovering) {
-            // Update time
-            time += 0.01;
+        // Update presentation mode transition smoothly
+        const targetTransition = isInPresentationMode ? 1.0 : 0.0;
+        const transitionSpeed = 0.05;
+        presentationModeTransition += (targetTransition - presentationModeTransition) * transitionSpeed;
+        
+        // Update time for all animations
+        time += 0.01;
+        
+        // Always update material time uniforms
+        nucleusMaterial.uniforms.time.value = time;
+        coronaMaterial.uniforms.time.value = time;
+        
+        // Update orbital dash materials for pulsing glow effect
+        orbitDashMaterials.forEach(material => {
+            material.uniforms.time.value = time;
+        });
+        
+        // Nucleus glowing pulse effect (always active)
+        nucleusMaterial.uniforms.emissiveIntensity.value = 0.3 + Math.sin(time * 2) * 0.2;
+        coronaMaterial.uniforms.glowIntensity.value = 1.0 + Math.sin(time * 3) * 0.5;
+        
+        // Default State: Free tumbling animation when not in presentation mode
+        if (presentationModeTransition < 0.1) {
+            // Enhanced tumbling rotation for engaging visual
+            atomGroup.rotation.y += 0.008; // Faster Y rotation for dynamic tumbling
+            atomGroup.rotation.x += 0.006; // Faster X rotation
+            atomGroup.rotation.z += 0.004; // Add Z rotation for 3D tumbling effect
             
-            // Subtle nucleus rotation
-            nucleus.rotation.x += 0.002;
-            nucleus.rotation.y += 0.003;
+            // Nucleus independent rotation for added visual complexity
+            nucleus.rotation.x += 0.004;
+            nucleus.rotation.y += 0.005;
+            nucleus.rotation.z += 0.003;
             
-            // Nucleus glowing pulse effect
-            nucleusMaterial.uniforms.emissiveIntensity.value = 0.3 + Math.sin(time * 2) * 0.2;
-            nucleusMaterial.uniforms.time.value = time;
+            // Parallax rotation for starfield (distant objects move slower)
+            starfield.rotation.y += 0.0001;
+            starfield.rotation.x += 0.00005;
             
-            // Slow rotation of entire atom
-            atomGroup.rotation.y += 0.001;
-            atomGroup.rotation.x += 0.0005;
+            // Nebula moves even slower for depth effect
+            nebula.rotation.y += 0.00005;
+            nebula.rotation.z += 0.00002;
             
-            // Rotate starfield for subtle movement
-            starfield.rotation.y += 0.0002;
+            // Animate electrons with predictable, slower motion in two-orbit system
             
-            // Animate electrons with unique orbits
-            // Electron 1: XY plane orbit
-            electrons[0].position.x = Math.cos(time * 0.3) * orbitConfigs[0].radius;
-            electrons[0].position.y = Math.sin(time * 0.3) * orbitConfigs[0].radius;
+            // Inner Orbit (Personal): Bio electron - slower, constant speed
+            const innerSpeed = 0.15; // Slower, predictable speed
+            const innerAngle = time * innerSpeed;
+            const innerRadius = orbitConfigs[0].radius;
+            electrons[0].position.x = Math.cos(innerAngle) * innerRadius;
+            electrons[0].position.y = Math.sin(innerAngle) * innerRadius;
             electrons[0].position.z = 0;
             
-            // Electron 2: XZ plane orbit
-            electrons[1].position.x = Math.cos(time * 0.25) * orbitConfigs[1].radius;
-            electrons[1].position.y = 0;
-            electrons[1].position.z = Math.sin(time * 0.25) * orbitConfigs[1].radius;
+            // Outer Orbit (Projects): Three project electrons evenly spaced (120 degrees apart)
+            const outerSpeed = 0.12; // Slightly slower for outer orbit
+            const outerRadius = orbitConfigs[1].radius;
+            const baseOuterAngle = time * outerSpeed;
+            const spacing = (Math.PI * 2) / 3; // 120 degrees between electrons
+            const tiltX = orbitConfigs[1].tilt.x;
             
-            // Electron 3: 45-degree tilted orbit
-            const angle3 = time * 0.2;
-            const radius3 = orbitConfigs[2].radius;
-            electrons[2].position.x = Math.cos(angle3) * radius3 * Math.cos(Math.PI / 4);
-            electrons[2].position.y = Math.sin(angle3) * radius3 * Math.cos(Math.PI / 4);
-            electrons[2].position.z = Math.sin(angle3) * radius3 * Math.sin(Math.PI / 4);
-            
-            // Electron 4: Complex orbit with larger radius and different speed
-            const angle4 = time * 0.15;
-            const radius4 = orbitConfigs[3].radius;
-            electrons[3].position.x = Math.cos(angle4) * radius4 * 0.8;
-            electrons[3].position.y = Math.sin(angle4 * 2) * radius4 * 0.5; // Double frequency on Y
-            electrons[3].position.z = Math.sin(angle4) * radius4 * 0.6;
+            for (let i = 1; i < 4; i++) { // Electrons 1, 2, 3 (projects)
+                const electronAngle = baseOuterAngle + (i - 1) * spacing;
+                
+                // Apply slight tilt to outer orbit
+                const x = Math.cos(electronAngle) * outerRadius;
+                const y = Math.sin(electronAngle) * outerRadius * Math.cos(tiltX);
+                const z = Math.sin(electronAngle) * outerRadius * Math.sin(tiltX);
+                
+                electrons[i].position.x = x;
+                electrons[i].position.y = y;
+                electrons[i].position.z = z;
+            }
         }
         
-        // Handle electron scaling and label animation (always runs, even when paused)
+        // Presentation Mode: Smooth animation into stable, predictable state
+        if (presentationModeTransition > 0) {
+            // Calculate target rotation for presentation mode (face camera directly)
+            const targetRotationX = 0;
+            const targetRotationY = 0;
+            const targetRotationZ = 0;
+            
+            // Smoothly interpolate to presentation orientation
+            const lerpFactor = 0.08; // Faster transition for responsiveness
+            atomGroup.rotation.x += (targetRotationX - atomGroup.rotation.x) * lerpFactor * presentationModeTransition;
+            atomGroup.rotation.y += (targetRotationY - atomGroup.rotation.y) * lerpFactor * presentationModeTransition;
+            atomGroup.rotation.z += (targetRotationZ - atomGroup.rotation.z) * lerpFactor * presentationModeTransition;
+            
+            // Inner orbit (Personal): Slower constant speed for predictable interaction
+            const innerPresentationSpeed = 0.06; // Slower for stable targeting
+            const innerAngle = time * innerPresentationSpeed;
+            const innerRadius = orbitConfigs[0].radius;
+            
+            // Smoothly flatten inner orbit to 2D circular path
+            const innerZ = electrons[0].position.z;
+            const targetInnerZ = 0;
+            electrons[0].position.x = Math.cos(innerAngle) * innerRadius;
+            electrons[0].position.y = Math.sin(innerAngle) * innerRadius;
+            electrons[0].position.z = innerZ + (targetInnerZ - innerZ) * lerpFactor * presentationModeTransition;
+            
+            // Outer orbit (Projects): Different constant speed for mechanical motion effect
+            const outerPresentationSpeed = 0.10; // Faster for pleasing visual contrast
+            const outerRadius = orbitConfigs[1].radius;
+            const baseOuterAngle = time * outerPresentationSpeed;
+            const spacing = (Math.PI * 2) / 3;
+            
+            // Smoothly flatten outer orbit to face camera (remove tilt completely)
+            for (let i = 1; i < 4; i++) {
+                const electronAngle = baseOuterAngle + (i - 1) * spacing;
+                const targetX = Math.cos(electronAngle) * outerRadius;
+                const targetY = Math.sin(electronAngle) * outerRadius;
+                const targetZ = 0; // Flattened to face camera
+                
+                // Smooth interpolation to flattened positions
+                electrons[i].position.x += (targetX - electrons[i].position.x) * lerpFactor * presentationModeTransition + (1 - presentationModeTransition) * (targetX - electrons[i].position.x) * 0.02;
+                electrons[i].position.y += (targetY - electrons[i].position.y) * lerpFactor * presentationModeTransition + (1 - presentationModeTransition) * (targetY - electrons[i].position.y) * 0.02;
+                electrons[i].position.z += (targetZ - electrons[i].position.z) * lerpFactor * presentationModeTransition;
+            }
+        }
+        
+        // Handle electron scaling, shader effects, and label animation (always runs, even when paused)
         electrons.forEach(electron => {
             const isHovered = electron === hoveredElectron;
             const targetScale = isHovered ? 1.2 : 1.0;
+            const targetHoverIntensity = isHovered ? 1.0 : 0.0;
             
             // Smooth lerp towards target scale
             const lerpFactor = 0.1;
@@ -433,9 +900,36 @@ export function initThreeScene() {
             electron.scale.y += (targetScale - electron.scale.y) * lerpFactor;
             electron.scale.z += (targetScale - electron.scale.z) * lerpFactor;
             
-            // Show/hide label based on hover state
+            // Update material hover intensity for core glow effect
+            if (electron.userData.coreMaterial && electron.userData.shellMaterial) {
+                const currentHoverIntensity = electron.userData.coreMaterial.uniforms.hoverIntensity.value;
+                const newHoverIntensity = currentHoverIntensity + (targetHoverIntensity - currentHoverIntensity) * lerpFactor;
+                
+                electron.userData.coreMaterial.uniforms.hoverIntensity.value = newHoverIntensity;
+                electron.userData.shellMaterial.uniforms.hoverIntensity.value = newHoverIntensity;
+                electron.userData.coreMaterial.uniforms.time.value = time;
+                electron.userData.shellMaterial.uniforms.time.value = time;
+            }
+            
+            // Enhanced and more prominent label animation based on hover state
             if (electron.userData.label) {
-                electron.userData.label.style.opacity = isHovered ? '1' : '0';
+                if (isHovered) {
+                    electron.userData.label.style.opacity = '1';
+                    electron.userData.label.style.transform = 'scale(1.2) translateY(-8px)';
+                    electron.userData.label.style.background = 'rgba(0, 255, 255, 0.3)';
+                    electron.userData.label.style.border = '2px solid rgba(0, 255, 255, 0.8)';
+                    electron.userData.label.style.textShadow = '0 0 25px #00ffff, 0 0 50px #00ffff80, 0 0 75px #00ffff40';
+                    electron.userData.label.style.fontSize = '18px';
+                    electron.userData.label.style.fontWeight = '900';
+                } else {
+                    electron.userData.label.style.opacity = '0';
+                    electron.userData.label.style.transform = 'scale(1) translateY(0)';
+                    electron.userData.label.style.background = 'rgba(0, 255, 255, 0.1)';
+                    electron.userData.label.style.border = '1px solid rgba(0, 255, 255, 0.3)';
+                    electron.userData.label.style.textShadow = '0 0 15px #00ffff, 0 0 30px #00ffff80';
+                    electron.userData.label.style.fontSize = '16px';
+                    electron.userData.label.style.fontWeight = 'bold';
+                }
             }
         });
         
