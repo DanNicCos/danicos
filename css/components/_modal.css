@@ -11,7 +11,7 @@
     align-items: center;
     opacity: 1;
     visibility: visible;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 #modal-container.hidden {
@@ -33,7 +33,7 @@
     /* CHANGED: Use a new animation for the initial slide-in */
     animation: modalContentSlideIn 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     /* ADDED: Add a transition for opacity and transform for back/forth navigation */
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
 
     /* --- ADD THESE THREE LINES --- */
     display: flex;
@@ -75,7 +75,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .close-button:hover {
@@ -115,7 +115,7 @@
     border: 1px solid rgba(0, 255, 255, 0.3);
     border-radius: 6px;
     font-size: 0.95rem;
-    transition: all 0.3s ease;
+    transition: all 0.1s ease;
     position: relative;
     overflow: hidden;
 }
@@ -128,7 +128,7 @@
     width: 100%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent);
-    transition: left 0.5s ease;
+    transition: left 0.2s ease;
 }
 
 .social-link:hover {
