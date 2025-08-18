@@ -352,9 +352,14 @@ export function initThreeScene() {
     pointLight.position.set(2, 3, 4);
     scene.add(pointLight);
 
-    // Add enhanced starfield and nebula to scene
+    // Add enhanced starfield and nebula to scene - positioned behind atom
     const starfield = createStarfield();
     const nebula = createNebula();
+    
+    // Position starfield far behind the atom scene
+    starfield.position.z = -50; // Far behind the atom (nucleus is at z=0, electrons orbit around z=0)
+    nebula.position.z = -30; // Behind the atom but in front of starfield
+    
     scene.add(starfield);
     scene.add(nebula);
     
@@ -971,8 +976,13 @@ export function initThreeScene() {
             const nucleusIntersects = raycaster.intersectObjects([nucleus, corona], false);
             
             if (nucleusIntersects.length > 0) {
-                // Dispatch nucleus click event (same as Discover button)
-                window.dispatchEvent(new CustomEvent('nucleusClicked'));
+                // Reverse orbit direction instead of opening modal
+                orbitDirection *= -1;
+                
+                // Play nucleus click sound if available
+                if (window.audioFeedback) {
+                    window.audioFeedback.playNucleusClickSound();
+                }
             }
         }
     }
@@ -1042,6 +1052,9 @@ export function initThreeScene() {
     
     // Time tracker for electron animation
     let time = 0;
+    
+    // Direction control for electrons and orbits
+    let orbitDirection = 1; // 1 for normal, -1 for reversed
     
     // Distant Pulsar Ping Effect Function
     function triggerPulsarPing() {
@@ -1186,20 +1199,20 @@ export function initThreeScene() {
             nebula.rotation.y += 0.00005;
             nebula.rotation.z += 0.00002;
             
-            // Animate electrons with predictable, slower motion in two-orbit system
+            // Animate electrons with predictable, steady motion in two-orbit system
             
-            // Inner Orbit (Personal): Bio electron - slower, constant speed
-            const innerSpeed = 0.15; // Slower, predictable speed
-            const innerAngle = time * innerSpeed;
+            // Inner Orbit (Personal): Bio electron - steady, constant speed
+            const innerSpeed = 0.15; // Steady, predictable speed
+            const innerAngle = time * innerSpeed * orbitDirection; // Apply direction control
             const innerRadius = orbitConfigs[0].radius;
             electrons[0].position.x = Math.cos(innerAngle) * innerRadius;
             electrons[0].position.y = Math.sin(innerAngle) * innerRadius;
             electrons[0].position.z = 0;
             
             // Outer Orbit (Projects): Three project electrons evenly spaced (120 degrees apart)
-            const outerSpeed = 0.12; // Slightly slower for outer orbit
+            const outerSpeed = 0.12; // Steady speed for outer orbit
             const outerRadius = orbitConfigs[1].radius;
-            const baseOuterAngle = time * outerSpeed;
+            const baseOuterAngle = time * outerSpeed * orbitDirection; // Apply direction control
             const spacing = (Math.PI * 2) / 3; // 120 degrees between electrons
             const tiltX = orbitConfigs[1].tilt.x;
             
@@ -1232,7 +1245,7 @@ export function initThreeScene() {
             
             // Inner orbit (Personal): Slower constant speed for predictable interaction
             const innerPresentationSpeed = 0.06; // Slower for stable targeting
-            const innerAngle = time * innerPresentationSpeed;
+            const innerAngle = time * innerPresentationSpeed * orbitDirection; // Apply direction control
             const innerRadius = orbitConfigs[0].radius;
             
             // Smoothly flatten inner orbit to 2D circular path
@@ -1245,7 +1258,7 @@ export function initThreeScene() {
             // Outer orbit (Projects): Different constant speed for mechanical motion effect
             const outerPresentationSpeed = 0.10; // Faster for pleasing visual contrast
             const outerRadius = orbitConfigs[1].radius;
-            const baseOuterAngle = time * outerPresentationSpeed;
+            const baseOuterAngle = time * outerPresentationSpeed * orbitDirection; // Apply direction control
             const spacing = (Math.PI * 2) / 3;
             
             // Smoothly flatten outer orbit to face camera (remove tilt completely)

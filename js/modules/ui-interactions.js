@@ -169,13 +169,8 @@ export function initInteractions() {
         });
     }
     
-    // Listen for nucleus click events from the 3D scene
-    window.addEventListener('nucleusClicked', () => {
-        initAudio().then(() => {
-            playNucleusClickSound();
-            openModal('projects_overview');
-        });
-    });
+    // Nucleus click events are now handled directly in three-scene.js
+    // to reverse orbit direction instead of opening a modal
     
     // Add one-time click listener to initialize audio on first interaction
     let hasInitializedAudio = false;
