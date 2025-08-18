@@ -1001,6 +1001,10 @@ export function initThreeScene() {
         // Check for intersections with electrons first (including their children - core and shell meshes)
         const electronIntersects = raycaster.intersectObjects(electrons, true);
         
+        // Check for nucleus intersection
+        const nucleusIntersects = raycaster.intersectObjects([nucleus, corona], false);
+        
+        // Update cursor state based on what we're hovering
         if (electronIntersects.length > 0) {
             const hoveredObject = electronIntersects[0].object;
             // The hovered object might be the core/shell mesh, so we need to traverse up to find the electron group
@@ -1011,13 +1015,21 @@ export function initThreeScene() {
             
             hoveredElectron = electronGroup;
             
+            // Set electron cursor
+            container.className = 'electron-hoverable';
+            
             // Play hover sound only when starting to hover a new electron
             if (hoveredElectron !== previousHoveredElectron && window.audioFeedback) {
                 window.audioFeedback.playHoverSound();
             }
-        } else {
-            // Reset hovered electron when not hovering any
+        } else if (nucleusIntersects.length > 0) {
+            // Hovering over nucleus
             hoveredElectron = null;
+            container.className = 'nucleus-hoverable';
+        } else {
+            // Not hovering over anything clickable
+            hoveredElectron = null;
+            container.className = '';
         }
         
         // Update previous hovered electron

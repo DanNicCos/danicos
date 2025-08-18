@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { initThreeScene } from './modules/three-scene.js';
 import { initInteractions } from './modules/ui-interactions.js';
+import { initModal } from './modules/modal-manager.js';
 
 // Make THREE and CSS2D available globally for the modules
 window.THREE = THREE;
@@ -13,3 +14,6 @@ initThreeScene();
 
 // Initialize UI interactions
 initInteractions();
+
+// Initialize modal event delegation
+initModal();

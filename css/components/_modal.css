@@ -4,33 +4,52 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(10, 25, 50, 0.85);
+    background-color: rgba(5, 15, 35, 0.92);
     z-index: 10;
     display: flex;
     justify-content: center;
     align-items: center;
     opacity: 1;
-    transition: opacity 0.3s ease;
+    visibility: visible;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 #modal-container.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .modal-content {
-    background: linear-gradient(145deg, rgba(10, 30, 70, 0.95), rgba(20, 40, 80, 0.95));
+    background: linear-gradient(145deg, rgba(25, 15, 45, 0.95), rgba(15, 25, 50, 0.95));
     padding: 2.5rem;
     border-radius: 12px;
     max-width: 500px;
     width: 90%;
     position: relative;
     box-shadow: 0 20px 60px rgba(0, 255, 255, 0.15);
-    border: 1px solid rgba(0, 255, 255, 0.3);
+    border: 1px solid var(--accent-color);
     transform: translateY(0);
-    animation: modalSlideIn 0.3s ease;
+    /* CHANGED: Use a new animation for the initial slide-in */
+    animation: modalContentSlideIn 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    /* ADDED: Add a transition for opacity and transform for back/forth navigation */
+    transition: opacity 0.3s ease, transform 0.3s ease;
+
+    /* --- ADD THESE THREE LINES --- */
+    display: flex;
+    flex-direction: column;
+    min-height: 320px; /* Adjust this value if needed */
 }
 
-@keyframes modalSlideIn {
+/* ADDED: A state for when content is animating out */
+.modal-content.is-hiding {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+}
+
+/* RENAMED: from modalSlideIn to modalContentSlideIn for clarity */
+@keyframes modalContentSlideIn {
     from {
         opacity: 0;
         transform: translateY(-30px) scale(0.95);
@@ -121,4 +140,36 @@
 
 .social-link:hover::before {
     left: 100%;
+}
+
+/* Enhanced focus states for accessibility */
+.close-button:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+    background-color: rgba(0, 255, 255, 0.1);
+}
+
+.project-button:focus,
+.social-link:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+/* Remove duplicate transition styles (already defined above) */
+
+/* Ensure modal content is properly centered on all screen sizes */
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 1rem;
+        max-width: calc(100% - 2rem);
+        padding: 2rem;
+    }
+    
+    .modal-title {
+        font-size: 1.5rem;
+    }
+    
+    .modal-description {
+        font-size: 1rem;
+    }
 }

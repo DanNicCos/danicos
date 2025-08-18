@@ -30,7 +30,17 @@
         </div>
     </footer>
     
-    <div id="modal-container" class="hidden"></div>
+    <div id="modal-container" class="hidden">
+        <div class="modal-content">
+            <button id="close-modal" class="close-button">×</button>
+            <h2 id="modal-title" class="modal-title"></h2>
+            <div id="modal-body">
+                <p id="modal-description" class="modal-description"></p>
+                <div id="project-list" class="project-list" style="display: none;"></div>
+                <div id="social-links" class="social-links" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
     
     <!-- Load Tone.js for audio feedback (deferred to prevent auto-initialization) -->
     <script>

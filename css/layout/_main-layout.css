@@ -5,6 +5,17 @@
   width: 100%;
   height: 100%;
   z-index: 1;
+  cursor: default;
+}
+
+/* Nuclear interaction cursor */
+#three-canvas-container.nucleus-hoverable {
+  cursor: pointer;
+}
+
+/* Electron interaction cursor */
+#three-canvas-container.electron-hoverable {
+  cursor: pointer;
 }
 
 /* Vignette effect - dark navy/purple center fading to black edges */
